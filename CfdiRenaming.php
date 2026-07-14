@@ -55,7 +55,7 @@ class CfdiRenaming
         return $this->extractDataFromDom($dom);
     }
 
-    public function processDirectory($dirPath)
+    public function processDirectory($dirPath, $outputDir = null)
     {
         $dirPath = rtrim($dirPath, '/');
         $xmlFiles = glob($dirPath . '/*.xml');
@@ -65,27 +65,31 @@ class CfdiRenaming
         }
 
         foreach ($xmlFiles as $xmlFile) {
-            $this->processFile($xmlFile);
+            $this->processFile($xmlFile, $outputDir);
         }
 
     }
 
-    public function processFile($filePath)
+    public function processFile($filePath, $outputDir = null)
     {
         try {
             $data = $this->extractFileData($filePath);
             $newName = $this->buildNewFileName($data['emisor'], $data['fecha'], $data['total']);
-            $newPath = $this->copyWithNewName($filePath, $newName);
+            $newPath = $this->copyWithNewName($filePath, $newName, $outputDir);
             echo "Procesado: {$filePath} -> {$newPath}\n";
         } catch (Exception $e) {
             echo "Error al procesar {$filePath}: " . $e->getMessage() . "\n";
         }
     }
 
-    public function copyWithNewName($originalPath, $newFileName)
+    public function copyWithNewName($originalPath, $newFileName, $outputDir = null)
     {
-        $directory = dirname($originalPath);
-        $destinationPath = $directory . '/' . $newFileName;
+        if ($outputDir && !is_dir($outputDir)) {
+            throw new Exception("El directorio de salida no existe: {$outputDir}");
+        }
+
+        $directory = $outputDir ? rtrim($outputDir, '/') : dirname($originalPath);
+        $destinationPath = "{$directory}/{$newFileName}";
 
         if ($originalPath === $destinationPath) {
             throw new Exception("Este archivo ya tiene el nombre deseado: {$originalPath}");
