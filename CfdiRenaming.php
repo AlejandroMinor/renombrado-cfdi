@@ -2,7 +2,7 @@
 
 class CfdiRenaming
 {
-    public function getFileData($file_path)
+    private function getFileData($file_path)
     {
         if (!file_exists($file_path)) {
             throw new Exception("El archivo no existe: {$file_path}");
@@ -13,20 +13,22 @@ class CfdiRenaming
         return file_get_contents($file_path);
     }
 
-    public function showFileData($file_path)
-    {
-        $data = $this->getFileData($file_path);
-        echo $data;
-    }
-
-    public function getDom($xmlContent)
+    private function getDom($xmlContent)
     {
         $dom = new DOMDocument();
-        $dom->loadXML($xmlContent);
+
+        libxml_use_internal_errors(true);
+        $isValid = $dom->loadXML($xmlContent);
+        libxml_use_internal_errors(false);
+
+        if (!$isValid) {
+            throw new Exception("El contenido no es un XML válido");
+        }
+
         return $dom;
     }
 
-    public function extractDataFromDom($dom)
+    private function extractDataFromDom($dom)
     {
         $xpath = new DOMXPath($dom);
         $xpath->registerNamespace("cfdi", "http://www.sat.gob.mx/cfd/4");
@@ -38,16 +40,17 @@ class CfdiRenaming
         ];
     }
 
-    public function buildNewFileName($emisor, $fecha, $total)
+    private function buildNewFileName($emisor, $fecha, $total)
     {
         $emisorLimpio = preg_replace('/\s+/', '_', trim($emisor));
+        $emisorLimpio = preg_replace('/[\/\\\\:*?"<>|]/', '', $emisorLimpio);
         $fechaLimpia = str_replace(':', '-', $fecha);
         $montoLimpio = str_replace('.', '-', $total);
 
         return "{$emisorLimpio}__{$fechaLimpia}__{$montoLimpio}.xml";
     }
 
-    public function extractFileData($file)
+    private function extractFileData($file)
     {
 
         $xmlContent = $this->getFileData($file);
@@ -82,7 +85,7 @@ class CfdiRenaming
         }
     }
 
-    public function copyWithNewName($originalPath, $newFileName, $outputDir = null)
+    private function copyWithNewName($originalPath, $newFileName, $outputDir = null)
     {
         if ($outputDir && !is_dir($outputDir)) {
             throw new Exception("El directorio de salida no existe: {$outputDir}");
@@ -93,6 +96,10 @@ class CfdiRenaming
 
         if ($originalPath === $destinationPath) {
             throw new Exception("Este archivo ya tiene el nombre deseado: {$originalPath}");
+        }
+
+        if (file_exists($destinationPath)) {
+            throw new Exception("Ya existe un archivo con ese nombre en el destino: {$destinationPath}");
         }
 
         if (!copy($originalPath, $destinationPath)) {
